@@ -1,9 +1,11 @@
 export type NoteColor = 'yellow' | 'blue' | 'pink' | 'green' | 'orange' | 'white';
+export type ItemType = 'todo' | 'doing' | 'done' | 'event' | 'note' | 'cancelled';
 
 export interface ChecklistItem {
   id: string;
   text: string;
   completed: boolean;
+  type: ItemType;
 }
 
 export interface Note {
@@ -13,6 +15,7 @@ export interface Note {
   color: NoteColor;
   columnId: string;
   createdAt: Date;
+  dueDate?: string; // YYYY-MM-DD format
 }
 
 export interface Column {
@@ -35,3 +38,5 @@ export interface Workspace {
   boards: Board[];
   activeBoard: string | null;
 }
+
+export type CalendarView = 'daily' | 'weekly' | 'monthly';

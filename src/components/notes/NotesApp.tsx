@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Menu, Plus, Search, LayoutGrid } from 'lucide-react';
+import { Menu, Plus, LayoutGrid, Calendar } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Board } from './Board';
+import { CalendarView } from './CalendarView';
 import { CreateBoardDialog } from './CreateBoardDialog';
 import { useNotesStore } from '@/stores/notesStore';
 import { cn } from '@/lib/utils';
@@ -9,7 +10,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export function NotesApp() {
-  const { boards, activeBoardId, sidebarOpen, setSidebarOpen, setActiveBoard } = useNotesStore();
+  const { boards, activeBoardId, sidebarOpen, setSidebarOpen, setActiveBoard, currentView } = useNotesStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -30,7 +31,7 @@ export function NotesApp() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <header className="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-20 flex-shrink-0">
+        <header className="flex items-center gap-3 px-4 sm:px-6 py-3 border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-20 flex-shrink-0">
           {/* Mobile Menu Button */}
           {isMobile && (
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -39,7 +40,7 @@ export function NotesApp() {
                   <Menu className="w-5 h-5" />
                 </button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-[300px]">
+              <SheetContent side="left" className="p-0 w-[280px]">
                 <Sidebar isMobile onClose={() => setMobileMenuOpen(false)} />
               </SheetContent>
             </Sheet>
@@ -57,18 +58,24 @@ export function NotesApp() {
 
           {/* Title */}
           <div className="flex-1 min-w-0">
-            <h1 className="font-display font-bold text-lg sm:text-2xl text-foreground truncate">
-              {activeBoard?.title || 'Select a Board'}
-            </h1>
-            {activeBoard && (
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {activeBoard.columns.reduce((acc, col) => acc + col.noteIds.length, 0)} notes · {activeBoard.columns.length} columns
-              </p>
-            )}
+            {currentView === 'boards' && activeBoard ? (
+              <>
+                <h1 className="font-display font-bold text-lg sm:text-xl text-foreground truncate">
+                  {activeBoard.title}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {activeBoard.columns.reduce((acc, col) => acc + col.noteIds.length, 0)} notes · {activeBoard.columns.length} columns
+                </p>
+              </>
+            ) : currentView === 'boards' ? (
+              <h1 className="font-display font-bold text-lg sm:text-xl text-foreground">
+                Select a Board
+              </h1>
+            ) : null}
           </div>
 
           {/* Header Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {currentView === 'boards' && (
             <button
               onClick={() => setCreateDialogOpen(true)}
               className="p-2 sm:px-3 sm:py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors touch-manipulation flex items-center gap-2"
@@ -76,37 +83,39 @@ export function NotesApp() {
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline text-sm font-medium">New Board</span>
             </button>
-          </div>
+          )}
         </header>
 
-        {/* Board Content */}
-        {activeBoard ? (
+        {/* Content */}
+        {currentView === 'calendar' ? (
+          <CalendarView />
+        ) : activeBoard ? (
           <Board board={activeBoard} />
         ) : (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="text-center max-w-sm">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <LayoutGrid className="w-10 h-10 text-primary" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                <LayoutGrid className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="font-display font-bold text-xl sm:text-2xl text-foreground mb-3">
+              <h2 className="font-display font-bold text-lg text-foreground mb-2">
                 No board selected
               </h2>
-              <p className="text-muted-foreground mb-6">
-                Create a new board to start organizing your thoughts with visual sticky notes.
+              <p className="text-sm text-muted-foreground mb-4">
+                Create a new board to start organizing your thoughts.
               </p>
               <button
                 onClick={() => setCreateDialogOpen(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors touch-manipulation"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
-                <Plus className="w-5 h-5" />
-                Create your first board
+                <Plus className="w-4 h-4" />
+                Create board
               </button>
             </div>
           </div>
         )}
 
         {/* Mobile Quick Add FAB */}
-        {isMobile && activeBoard && (
+        {isMobile && currentView === 'boards' && activeBoard && (
           <button
             onClick={() => {
               const firstColumn = activeBoard.columns[0];
