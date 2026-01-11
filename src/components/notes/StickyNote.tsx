@@ -102,8 +102,8 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
     updateChecklistItem(boardId, note.id, itemId, { type: newType, completed });
   };
 
-  const ItemIcon = ({ type, className }: { type: ItemType; className?: string }) => {
-    const config = itemTypeConfig[type];
+  const ItemIcon = ({ type, className }: { type: ItemType | undefined; className?: string }) => {
+    const config = itemTypeConfig[type || 'todo'] || itemTypeConfig.todo;
     const Icon = config.icon;
     return <Icon className={cn("w-4 h-4", config.color, className)} />;
   };
