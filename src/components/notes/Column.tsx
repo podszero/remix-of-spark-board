@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, MoreHorizontal, Trash2, Edit2, GripVertical } from 'lucide-react';
+import { RiMoreFill, RiDeleteBinLine, RiPencilLine } from 'react-icons/ri';
 import { cn } from '@/lib/utils';
 import { Column as ColumnType, Note } from '@/types/notes';
 import { StickyNote } from './StickyNote';
 import { useNotesStore } from '@/stores/notesStore';
+import { AddNoteMenu, NoteType } from './AddNoteMenu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,8 +38,9 @@ export function Column({ column, notes, boardId }: ColumnProps) {
     setIsEditing(false);
   };
 
-  const handleAddNote = () => {
-    addNote(boardId, column.id, '', 'yellow');
+  const handleAddNote = (type: NoteType, color?: import('@/types/notes').NoteColor) => {
+    // For now, all types create a standard note with the appropriate color
+    addNote(boardId, column.id, '', color || 'yellow');
   };
 
   const completedCount = notes.reduce((acc, note) => 
@@ -84,19 +86,19 @@ export function Column({ column, notes, boardId }: ColumnProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="p-2 rounded-lg opacity-60 hover:opacity-100 hover:bg-muted transition-all touch-manipulation">
-              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              <RiMoreFill className="w-4 h-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-card w-44">
             <DropdownMenuItem onClick={() => setIsEditing(true)} className="cursor-pointer">
-              <Edit2 className="w-4 h-4 mr-2" />
+              <RiPencilLine className="w-4 h-4 mr-2" />
               Rename
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={() => deleteColumn(boardId, column.id)}
               className="text-destructive focus:text-destructive cursor-pointer"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <RiDeleteBinLine className="w-4 h-4 mr-2" />
               Delete column
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -117,14 +119,8 @@ export function Column({ column, notes, boardId }: ColumnProps) {
           ))}
         </SortableContext>
 
-        {/* Add Note Button */}
-        <button
-          onClick={handleAddNote}
-          className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-xl border-2 border-dashed border-muted hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-foreground transition-all touch-manipulation"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">Add note</span>
-        </button>
+        {/* Add Note Menu */}
+        <AddNoteMenu onAddNote={handleAddNote} />
       </div>
     </div>
   );
