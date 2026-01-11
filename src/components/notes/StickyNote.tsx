@@ -1,9 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, Plus, GripVertical, Palette, Trash2, MoreHorizontal } from 'lucide-react';
+import { 
+  Square, 
+  CheckSquare, 
+  Circle, 
+  CircleDot,
+  CheckCircle2,
+  CalendarDays,
+  CalendarCheck,
+  Minus,
+  X,
+  Plus, 
+  GripVertical, 
+  MoreHorizontal,
+  Trash2,
+  Calendar
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Note, NoteColor } from '@/types/notes';
+import { Note, NoteColor, ItemType } from '@/types/notes';
 import { useNotesStore } from '@/stores/notesStore';
 import {
   DropdownMenu,
@@ -11,11 +26,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
+import { format } from 'date-fns';
 
 interface StickyNoteProps {
   note: Note;
   boardId: string;
+  compact?: boolean;
 }
 
 const colorClasses: Record<NoteColor, string> = {
@@ -28,7 +48,7 @@ const colorClasses: Record<NoteColor, string> = {
 };
 
 const colorOptions: { color: NoteColor; label: string; class: string }[] = [
-  { color: 'white', label: 'White', class: 'bg-white border border-gray-200' },
+  { color: 'white', label: 'White', class: 'bg-white border border-gray-300' },
   { color: 'yellow', label: 'Yellow', class: 'bg-amber-300' },
   { color: 'blue', label: 'Blue', class: 'bg-sky-300' },
   { color: 'pink', label: 'Pink', class: 'bg-pink-300' },
@@ -36,16 +56,20 @@ const colorOptions: { color: NoteColor; label: string; class: string }[] = [
   { color: 'orange', label: 'Orange', class: 'bg-orange-300' },
 ];
 
-export function StickyNote({ note, boardId }: StickyNoteProps) {
+const itemTypeConfig: Record<ItemType, { icon: typeof Square; label: string; color: string }> = {
+  todo: { icon: Square, label: 'Todo', color: 'text-muted-foreground' },
+  doing: { icon: CircleDot, label: 'Doing', color: 'text-amber-500' },
+  done: { icon: CheckSquare, label: 'Done', color: 'text-primary' },
+  event: { icon: CalendarDays, label: 'Event', color: 'text-blue-500' },
+  note: { icon: Minus, label: 'Note', color: 'text-muted-foreground' },
+  cancelled: { icon: X, label: 'Cancelled', color: 'text-muted-foreground' },
+};
+
+export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
   const [newItemText, setNewItemText] = useState('');
-  const [isHovered, setIsHovered] = useState(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isTouchDevice] = useState(() => 'ontouchstart' in window);
   const inputRef = useRef<HTMLInputElement>(null);
   const { updateNote, deleteNote, addChecklistItem, toggleChecklistItem, updateChecklistItem, deleteChecklistItem } = useNotesStore();
-
-  useEffect(() => {
-    setIsTouchDevice('ontouchstart' in window);
-  }, []);
 
   const {
     attributes,
@@ -63,7 +87,7 @@ export function StickyNote({ note, boardId }: StickyNoteProps) {
 
   const handleAddItem = () => {
     if (newItemText.trim()) {
-      addChecklistItem(boardId, note.id, newItemText.trim());
+      addChecklistItem(boardId, note.id, newItemText.trim(), 'todo');
       setNewItemText('');
       inputRef.current?.focus();
     }
@@ -73,50 +97,62 @@ export function StickyNote({ note, boardId }: StickyNoteProps) {
     updateNote(boardId, note.id, { color });
   };
 
-  const showActions = isHovered || isTouchDevice;
+  const handleTypeChange = (itemId: string, newType: ItemType) => {
+    const completed = newType === 'done';
+    updateChecklistItem(boardId, note.id, itemId, { type: newType, completed });
+  };
+
+  const ItemIcon = ({ type, className }: { type: ItemType; className?: string }) => {
+    const config = itemTypeConfig[type];
+    const Icon = config.icon;
+    return <Icon className={cn("w-4 h-4", config.color, className)} />;
+  };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative rounded-xl p-4 shadow-note transition-all duration-200 touch-manipulation",
+        "group relative rounded-xl shadow-note transition-all duration-200 touch-manipulation",
         colorClasses[note.color],
-        isDragging ? "opacity-50 shadow-hover scale-[1.02] z-50" : "hover:shadow-hover"
+        isDragging ? "opacity-50 shadow-hover scale-[1.02] z-50" : "hover:shadow-hover",
+        compact ? "p-3" : "p-4"
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Actions Menu - Mobile Friendly */}
+      {/* Actions Menu */}
       <div className={cn(
         "absolute -top-2 -right-2 flex items-center gap-1 transition-all duration-200 z-10",
-        showActions ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none"
+        "opacity-0 group-hover:opacity-100",
+        isTouchDevice && "opacity-100"
       )}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="p-2 rounded-full bg-card hover:bg-card shadow-md border border-border touch-manipulation">
+            <button className="p-1.5 rounded-full bg-card hover:bg-card shadow-md border border-border touch-manipulation">
               <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 bg-card" align="end">
-            {/* Color Picker */}
+          <DropdownMenuContent className="w-52 bg-card" align="end">
             <div className="px-2 py-2">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Note Color</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Color</p>
               <div className="flex gap-1.5 flex-wrap">
                 {colorOptions.map((option) => (
                   <button
                     key={option.color}
                     onClick={() => handleColorChange(option.color)}
                     className={cn(
-                      "w-7 h-7 rounded-full transition-transform hover:scale-110 touch-manipulation",
+                      "w-6 h-6 rounded-full transition-transform hover:scale-110 touch-manipulation",
                       option.class,
-                      note.color === option.color && "ring-2 ring-primary ring-offset-2"
+                      note.color === option.color && "ring-2 ring-primary ring-offset-1"
                     )}
-                    title={option.label}
                   />
                 ))}
               </div>
             </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer">
+              <Calendar className="w-4 h-4 mr-2" />
+              Set due date
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               onClick={() => deleteNote(boardId, note.id)}
@@ -128,11 +164,10 @@ export function StickyNote({ note, boardId }: StickyNoteProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Drag Handle */}
         <button
           {...attributes}
           {...listeners}
-          className="p-2 rounded-full bg-card hover:bg-card shadow-md border border-border cursor-grab active:cursor-grabbing touch-manipulation"
+          className="p-1.5 rounded-full bg-card hover:bg-card shadow-md border border-border cursor-grab active:cursor-grabbing touch-manipulation"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
@@ -143,46 +178,60 @@ export function StickyNote({ note, boardId }: StickyNoteProps) {
         type="text"
         value={note.title}
         onChange={(e) => updateNote(boardId, note.id, { title: e.target.value })}
-        className="w-full font-display font-bold text-base sm:text-lg bg-transparent border-none outline-none placeholder:text-foreground/40 mb-3"
+        className={cn(
+          "w-full font-display font-bold bg-transparent border-none outline-none placeholder:text-foreground/40",
+          compact ? "text-base mb-2" : "text-lg mb-3"
+        )}
         placeholder="Note title..."
       />
 
       {/* Checklist Items */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {note.items.map((item) => (
-          <div key={item.id} className="flex items-start gap-2.5 group/item">
-            <button
-              onClick={() => toggleChecklistItem(boardId, note.id, item.id)}
-              className={cn(
-                "mt-0.5 flex-shrink-0 w-5 h-5 rounded-md border-2 transition-all touch-manipulation flex items-center justify-center",
-                item.completed
-                  ? "bg-primary border-primary text-primary-foreground"
-                  : "border-foreground/30 hover:border-primary"
-              )}
-            >
-              {item.completed && <Check className="w-3 h-3" />}
-            </button>
+          <div key={item.id} className="flex items-start gap-2 group/item">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="mt-0.5 flex-shrink-0 touch-manipulation hover:scale-110 transition-transform">
+                  <ItemIcon type={item.type} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-44 bg-card" align="start">
+                {Object.entries(itemTypeConfig).map(([type, config]) => (
+                  <DropdownMenuItem
+                    key={type}
+                    onClick={() => handleTypeChange(item.id, type as ItemType)}
+                    className="cursor-pointer"
+                  >
+                    <config.icon className={cn("w-4 h-4 mr-2", config.color)} />
+                    <span>{config.label}</span>
+                    {item.type === type && (
+                      <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <input
               type="text"
               value={item.text}
-              onChange={(e) => updateChecklistItem(boardId, note.id, item.id, e.target.value)}
+              onChange={(e) => updateChecklistItem(boardId, note.id, item.id, { text: e.target.value })}
               className={cn(
                 "flex-1 bg-transparent border-none outline-none text-sm min-w-0",
-                item.completed && "line-through text-foreground/50"
+                (item.completed || item.type === 'cancelled') && "line-through text-foreground/50"
               )}
             />
             <button
               onClick={() => deleteChecklistItem(boardId, note.id, item.id)}
               className="opacity-0 group-hover/item:opacity-100 focus:opacity-100 text-foreground/40 hover:text-destructive transition-opacity p-1 touch-manipulation"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3 h-3" />
             </button>
           </div>
         ))}
       </div>
 
       {/* Add Item */}
-      <div className="flex items-center gap-2 mt-3 text-foreground/50">
+      <div className="flex items-center gap-2 mt-2 text-foreground/50">
         <Plus className="w-4 h-4 flex-shrink-0" />
         <input
           ref={inputRef}
@@ -194,6 +243,16 @@ export function StickyNote({ note, boardId }: StickyNoteProps) {
           className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-foreground/40 min-w-0"
         />
       </div>
+
+      {/* Due Date */}
+      {note.dueDate && (
+        <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-foreground/10">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {format(new Date(note.dueDate), 'MMM d, yyyy')}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
