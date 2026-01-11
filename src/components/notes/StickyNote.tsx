@@ -2,23 +2,16 @@ import { useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { 
-  Square, 
-  CheckSquare, 
-  CircleDot,
-  CheckCircle2,
-  CalendarDays,
-  Minus,
-  X as XIcon,
-  Plus, 
-  GripVertical, 
-  MoreHorizontal,
-  Trash2,
-  Calendar,
-  Tag as TagIcon
-} from 'lucide-react';
+  RiDraggable,
+  RiMoreFill,
+  RiDeleteBinLine,
+  RiCalendarLine,
+  RiAddLine
+} from 'react-icons/ri';
 import { cn } from '@/lib/utils';
 import { Note, NoteColor, ItemType, TagColor } from '@/types/notes';
 import { useNotesStore } from '@/stores/notesStore';
+import { ItemTypeMenu, ItemIcon } from './ItemTypeMenu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,15 +45,6 @@ const colorOptions: { color: NoteColor; label: string; class: string }[] = [
   { color: 'orange', label: 'Orange', class: 'bg-orange-300' },
 ];
 
-const itemTypeConfig: Record<ItemType, { icon: typeof Square; label: string; color: string }> = {
-  todo: { icon: Square, label: 'Todo', color: 'text-muted-foreground' },
-  doing: { icon: CircleDot, label: 'Doing', color: 'text-amber-500' },
-  done: { icon: CheckSquare, label: 'Done', color: 'text-primary' },
-  event: { icon: CalendarDays, label: 'Event', color: 'text-blue-500' },
-  note: { icon: Minus, label: 'Note', color: 'text-muted-foreground' },
-  cancelled: { icon: XIcon, label: 'Cancelled', color: 'text-muted-foreground' },
-};
-
 const tagColorClasses: Record<TagColor, string> = {
   red: 'bg-red-100 text-red-700 border-red-200',
   orange: 'bg-orange-100 text-orange-700 border-orange-200',
@@ -72,17 +56,6 @@ const tagColorClasses: Record<TagColor, string> = {
   gray: 'bg-gray-100 text-gray-700 border-gray-200',
 };
 
-const tagDotClasses: Record<TagColor, string> = {
-  red: 'bg-red-500',
-  orange: 'bg-orange-500',
-  yellow: 'bg-yellow-500',
-  green: 'bg-emerald-500',
-  blue: 'bg-blue-500',
-  purple: 'bg-purple-500',
-  pink: 'bg-pink-500',
-  gray: 'bg-gray-500',
-};
-
 export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
   const [newItemText, setNewItemText] = useState('');
   const [isTouchDevice] = useState(() => 'ontouchstart' in window);
@@ -91,7 +64,6 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
     updateNote, 
     deleteNote, 
     addChecklistItem, 
-    toggleChecklistItem, 
     updateChecklistItem, 
     deleteChecklistItem,
     tags,
@@ -133,12 +105,6 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
     updateChecklistItem(boardId, note.id, itemId, { type: newType, completed });
   };
 
-  const ItemIcon = ({ type, className }: { type: ItemType | undefined; className?: string }) => {
-    const config = itemTypeConfig[type || 'todo'] || itemTypeConfig.todo;
-    const Icon = config.icon;
-    return <Icon className={cn("w-4 h-4", config.color, className)} />;
-  };
-
   return (
     <div
       ref={setNodeRef}
@@ -159,7 +125,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="p-1.5 rounded-full bg-card hover:bg-card shadow-md border border-border touch-manipulation">
-              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              <RiMoreFill className="w-4 h-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56 bg-card" align="end">
@@ -206,7 +172,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
             
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer">
-              <Calendar className="w-4 h-4 mr-2" />
+              <RiCalendarLine className="w-4 h-4 mr-2" />
               Set due date
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -214,7 +180,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
               onClick={() => deleteNote(boardId, note.id)}
               className="text-destructive focus:text-destructive cursor-pointer"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <RiDeleteBinLine className="w-4 h-4 mr-2" />
               Delete note
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -225,7 +191,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
           {...listeners}
           className="p-1.5 rounded-full bg-card hover:bg-card shadow-md border border-border cursor-grab active:cursor-grabbing touch-manipulation"
         >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
+          <RiDraggable className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
@@ -263,28 +229,13 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
       <div className="space-y-1.5">
         {note.items.map((item) => (
           <div key={item.id} className="flex items-start gap-2 group/item">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="mt-0.5 flex-shrink-0 touch-manipulation hover:scale-110 transition-transform">
-                  <ItemIcon type={item.type} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-44 bg-card" align="start">
-                {Object.entries(itemTypeConfig).map(([type, config]) => (
-                  <DropdownMenuItem
-                    key={type}
-                    onClick={() => handleTypeChange(item.id, type as ItemType)}
-                    className="cursor-pointer"
-                  >
-                    <config.icon className={cn("w-4 h-4 mr-2", config.color)} />
-                    <span>{config.label}</span>
-                    {item.type === type && (
-                      <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="mt-0.5">
+              <ItemTypeMenu 
+                type={item.type || 'todo'} 
+                onTypeChange={(newType) => handleTypeChange(item.id, newType)}
+                size="sm"
+              />
+            </div>
             <input
               type="text"
               value={item.text}
@@ -298,7 +249,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
               onClick={() => deleteChecklistItem(boardId, note.id, item.id)}
               className="opacity-0 group-hover/item:opacity-100 focus:opacity-100 text-foreground/40 hover:text-destructive transition-opacity p-1 touch-manipulation"
             >
-              <Trash2 className="w-3 h-3" />
+              <RiDeleteBinLine className="w-3 h-3" />
             </button>
           </div>
         ))}
@@ -306,7 +257,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
 
       {/* Add Item */}
       <div className="flex items-center gap-2 mt-2 text-foreground/50">
-        <Plus className="w-4 h-4 flex-shrink-0" />
+        <RiAddLine className="w-4 h-4 flex-shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -321,7 +272,7 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
       {/* Due Date */}
       {note.dueDate && (
         <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-foreground/10">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+          <RiCalendarLine className="w-3.5 h-3.5 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
             {format(new Date(note.dueDate), 'MMM d, yyyy')}
           </span>
