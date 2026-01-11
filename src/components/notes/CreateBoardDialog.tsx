@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notesStore';
-import { LayoutGrid, Columns3 } from 'lucide-react';
+import { LayoutGrid, Columns3, Sparkles } from 'lucide-react';
 
 interface CreateBoardDialogProps {
   open: boolean;
@@ -27,9 +27,12 @@ export function CreateBoardDialog({ open, onOpenChange }: CreateBoardDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card">
+      <DialogContent className="sm:max-w-md bg-card mx-4 rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Create New Board</DialogTitle>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            Create New Board
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -42,48 +45,48 @@ export function CreateBoardDialog({ open, onOpenChange }: CreateBoardDialogProps
               <button
                 onClick={() => setType('simple')}
                 className={cn(
-                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all touch-manipulation",
                   type === 'simple'
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30"
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border hover:border-muted-foreground/30 hover:bg-muted/50"
                 )}
               >
                 <div className={cn(
-                  "w-12 h-12 rounded-lg flex items-center justify-center",
+                  "w-14 h-14 rounded-xl flex items-center justify-center transition-colors",
                   type === 'simple' ? "bg-primary" : "bg-muted"
                 )}>
                   <LayoutGrid className={cn(
-                    "w-6 h-6",
+                    "w-7 h-7",
                     type === 'simple' ? "text-primary-foreground" : "text-muted-foreground"
                   )} />
                 </div>
                 <div className="text-center">
-                  <p className="font-medium text-sm">Simple</p>
-                  <p className="text-xs text-muted-foreground">Notes in chronological order</p>
+                  <p className="font-semibold text-sm">Simple</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Chronological order</p>
                 </div>
               </button>
 
               <button
                 onClick={() => setType('kanban')}
                 className={cn(
-                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all touch-manipulation",
                   type === 'kanban'
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/30"
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border hover:border-muted-foreground/30 hover:bg-muted/50"
                 )}
               >
                 <div className={cn(
-                  "w-12 h-12 rounded-lg flex items-center justify-center",
+                  "w-14 h-14 rounded-xl flex items-center justify-center transition-colors",
                   type === 'kanban' ? "bg-sky-500" : "bg-muted"
                 )}>
                   <Columns3 className={cn(
-                    "w-6 h-6",
+                    "w-7 h-7",
                     type === 'kanban' ? "text-white" : "text-muted-foreground"
                   )} />
                 </div>
                 <div className="text-center">
-                  <p className="font-medium text-sm">Kanban</p>
-                  <p className="text-xs text-muted-foreground">Organize notes in columns with drag & drop</p>
+                  <p className="font-semibold text-sm">Kanban</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Columns & drag-drop</p>
                 </div>
               </button>
             </div>
@@ -92,25 +95,33 @@ export function CreateBoardDialog({ open, onOpenChange }: CreateBoardDialogProps
           {/* Title Input */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
-              Title
+              Board Name
             </label>
             <Input
-              placeholder="Board name"
+              placeholder="e.g., Project Ideas, Weekly Goals..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              className="bg-background"
+              className="bg-background h-12 text-base"
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <div className="flex gap-3 pt-2">
+          <Button 
+            variant="ghost" 
+            onClick={() => onOpenChange(false)}
+            className="flex-1 h-11"
+          >
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={!title.trim()}>
-            Create
+          <Button 
+            onClick={handleCreate} 
+            disabled={!title.trim()}
+            className="flex-1 h-11"
+          >
+            Create Board
           </Button>
         </div>
       </DialogContent>
