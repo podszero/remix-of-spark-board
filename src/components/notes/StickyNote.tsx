@@ -4,21 +4,20 @@ import { CSS } from '@dnd-kit/utilities';
 import { 
   Square, 
   CheckSquare, 
-  Circle, 
   CircleDot,
   CheckCircle2,
   CalendarDays,
-  CalendarCheck,
   Minus,
-  X,
+  X as XIcon,
   Plus, 
   GripVertical, 
   MoreHorizontal,
   Trash2,
-  Calendar
+  Calendar,
+  Tag as TagIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Note, NoteColor, ItemType } from '@/types/notes';
+import { Note, NoteColor, ItemType, TagColor } from '@/types/notes';
 import { useNotesStore } from '@/stores/notesStore';
 import {
   DropdownMenu,
@@ -26,9 +25,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 
@@ -62,14 +58,49 @@ const itemTypeConfig: Record<ItemType, { icon: typeof Square; label: string; col
   done: { icon: CheckSquare, label: 'Done', color: 'text-primary' },
   event: { icon: CalendarDays, label: 'Event', color: 'text-blue-500' },
   note: { icon: Minus, label: 'Note', color: 'text-muted-foreground' },
-  cancelled: { icon: X, label: 'Cancelled', color: 'text-muted-foreground' },
+  cancelled: { icon: XIcon, label: 'Cancelled', color: 'text-muted-foreground' },
+};
+
+const tagColorClasses: Record<TagColor, string> = {
+  red: 'bg-red-100 text-red-700 border-red-200',
+  orange: 'bg-orange-100 text-orange-700 border-orange-200',
+  yellow: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  green: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  blue: 'bg-blue-100 text-blue-700 border-blue-200',
+  purple: 'bg-purple-100 text-purple-700 border-purple-200',
+  pink: 'bg-pink-100 text-pink-700 border-pink-200',
+  gray: 'bg-gray-100 text-gray-700 border-gray-200',
+};
+
+const tagDotClasses: Record<TagColor, string> = {
+  red: 'bg-red-500',
+  orange: 'bg-orange-500',
+  yellow: 'bg-yellow-500',
+  green: 'bg-emerald-500',
+  blue: 'bg-blue-500',
+  purple: 'bg-purple-500',
+  pink: 'bg-pink-500',
+  gray: 'bg-gray-500',
 };
 
 export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
   const [newItemText, setNewItemText] = useState('');
   const [isTouchDevice] = useState(() => 'ontouchstart' in window);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { updateNote, deleteNote, addChecklistItem, toggleChecklistItem, updateChecklistItem, deleteChecklistItem } = useNotesStore();
+  const { 
+    updateNote, 
+    deleteNote, 
+    addChecklistItem, 
+    toggleChecklistItem, 
+    updateChecklistItem, 
+    deleteChecklistItem,
+    tags,
+    addTagToNote,
+    removeTagFromNote
+  } = useNotesStore();
+
+  const noteTags = tags.filter(t => note.tagIds?.includes(t.id));
+  const availableTags = tags.filter(t => !note.tagIds?.includes(t.id));
 
   const {
     attributes,
@@ -131,7 +162,8 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
               <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-52 bg-card" align="end">
+          <DropdownMenuContent className="w-56 bg-card" align="end">
+            {/* Color picker */}
             <div className="px-2 py-2">
               <p className="text-xs font-medium text-muted-foreground mb-2">Color</p>
               <div className="flex gap-1.5 flex-wrap">
@@ -148,6 +180,30 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
                 ))}
               </div>
             </div>
+            <DropdownMenuSeparator />
+            
+            {/* Tags */}
+            <div className="px-2 py-2">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Tags</p>
+              <div className="flex flex-wrap gap-1">
+                {availableTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => addTagToNote(boardId, note.id, tag.id)}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-medium border transition-transform hover:scale-105",
+                      tagColorClasses[tag.color]
+                    )}
+                  >
+                    + {tag.name}
+                  </button>
+                ))}
+                {availableTags.length === 0 && (
+                  <span className="text-xs text-muted-foreground">All tags added</span>
+                )}
+              </div>
+            </div>
+            
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer">
               <Calendar className="w-4 h-4 mr-2" />
@@ -172,6 +228,24 @@ export function StickyNote({ note, boardId, compact }: StickyNoteProps) {
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
+
+      {/* Tags */}
+      {noteTags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {noteTags.map(tag => (
+            <span 
+              key={tag.id}
+              onClick={() => removeTagFromNote(boardId, note.id, tag.id)}
+              className={cn(
+                "px-2 py-0.5 rounded-full text-[10px] font-medium border cursor-pointer hover:opacity-70 transition-opacity",
+                tagColorClasses[tag.color]
+              )}
+            >
+              {tag.name} ×
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Title */}
       <input

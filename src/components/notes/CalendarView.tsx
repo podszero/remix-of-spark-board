@@ -6,9 +6,23 @@ import {
   Plus,
   StickyNote as StickyNoteIcon,
   CalendarDays,
-  CalendarRange
+  CalendarRange,
+  Grid3X3
 } from 'lucide-react';
-import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isSameDay } from 'date-fns';
+import { 
+  format, 
+  addDays, 
+  subDays, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isToday, 
+  startOfMonth,
+  endOfMonth,
+  isSameMonth,
+  addMonths,
+  subMonths
+} from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notesStore';
 import { Button } from '@/components/ui/button';
@@ -16,9 +30,13 @@ import { Note } from '@/types/notes';
 
 interface CalendarNoteCardProps {
   note: Note & { boardId: string; boardTitle: string };
+  compact?: boolean;
 }
 
-function CalendarNoteCard({ note }: CalendarNoteCardProps) {
+function CalendarNoteCard({ note, compact }: CalendarNoteCardProps) {
+  const { tags } = useNotesStore();
+  const noteTags = tags.filter(t => note.tagIds?.includes(t.id));
+  
   const colorClasses: Record<string, string> = {
     yellow: 'bg-note-yellow',
     blue: 'bg-note-blue',
@@ -28,6 +46,33 @@ function CalendarNoteCard({ note }: CalendarNoteCardProps) {
     white: 'bg-note-white border border-border',
   };
 
+  const tagColors: Record<string, string> = {
+    red: 'bg-red-100 text-red-700',
+    orange: 'bg-orange-100 text-orange-700',
+    yellow: 'bg-yellow-100 text-yellow-700',
+    green: 'bg-emerald-100 text-emerald-700',
+    blue: 'bg-blue-100 text-blue-700',
+    purple: 'bg-purple-100 text-purple-700',
+    pink: 'bg-pink-100 text-pink-700',
+    gray: 'bg-gray-100 text-gray-700',
+  };
+
+  if (compact) {
+    return (
+      <div className={cn(
+        "rounded-lg p-2 text-sm",
+        colorClasses[note.color]
+      )}>
+        <p className="font-medium truncate">{note.title || 'Untitled'}</p>
+        {note.items.length > 0 && (
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {note.items.filter(i => i.completed).length}/{note.items.length}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   const completedCount = note.items.filter(i => i.completed).length;
   const totalItems = note.items.length;
 
@@ -36,6 +81,20 @@ function CalendarNoteCard({ note }: CalendarNoteCardProps) {
       "rounded-xl p-4 shadow-soft transition-all hover:shadow-note",
       colorClasses[note.color]
     )}>
+      {/* Tags */}
+      {noteTags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {noteTags.map(tag => (
+            <span 
+              key={tag.id}
+              className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", tagColors[tag.color])}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+      
       <h4 className="font-display font-bold text-base mb-2">{note.title || 'Untitled'}</h4>
       
       <div className="space-y-1.5">
@@ -56,7 +115,7 @@ function CalendarNoteCard({ note }: CalendarNoteCardProps) {
           </div>
         ))}
         {note.items.length > 3 && (
-          <p className="text-xs text-muted-foreground">+{note.items.length - 3} more items</p>
+          <p className="text-xs text-muted-foreground">+{note.items.length - 3} more</p>
         )}
       </div>
 
@@ -83,9 +142,14 @@ export function CalendarView() {
   };
 
   const navigateDate = (direction: 'prev' | 'next') => {
-    const newDate = direction === 'prev' 
-      ? subDays(currentDate, calendarView === 'weekly' ? 7 : 1)
-      : addDays(currentDate, calendarView === 'weekly' ? 7 : 1);
+    let newDate: Date;
+    if (calendarView === 'monthly') {
+      newDate = direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1);
+    } else if (calendarView === 'weekly') {
+      newDate = direction === 'prev' ? subDays(currentDate, 7) : addDays(currentDate, 7);
+    } else {
+      newDate = direction === 'prev' ? subDays(currentDate, 1) : addDays(currentDate, 1);
+    }
     setSelectedDate(format(newDate, 'yyyy-MM-dd'));
   };
 
@@ -93,16 +157,20 @@ export function CalendarView() {
     setSelectedDate(format(new Date(), 'yyyy-MM-dd'));
   };
 
-  // Get week days for the date picker
   const weekDays = useMemo(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 0 });
     return eachDayOfInterval({ start, end: addDays(start, 6) });
   }, [selectedDate]);
 
-  // Get week range for weekly view
   const weekRange = useMemo(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 0 });
     const end = endOfWeek(currentDate, { weekStartsOn: 0 });
+    return eachDayOfInterval({ start, end });
+  }, [selectedDate]);
+
+  const monthDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 0 });
     return eachDayOfInterval({ start, end });
   }, [selectedDate]);
 
@@ -116,7 +184,9 @@ export function CalendarView() {
           <h1 className="font-display font-bold text-xl sm:text-2xl text-foreground">
             {calendarView === 'daily' 
               ? format(currentDate, 'MMMM d, yyyy')
-              : `Week of ${format(weekRange[0], 'MMM d')}`
+              : calendarView === 'weekly'
+              ? `Week of ${format(weekRange[0], 'MMM d')}`
+              : format(currentDate, 'MMMM yyyy')
             }
           </h1>
         </div>
@@ -126,26 +196,38 @@ export function CalendarView() {
             <button
               onClick={() => setCalendarView('daily')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors",
                 calendarView === 'daily' 
                   ? "bg-background text-foreground shadow-sm" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <CalendarDays className="w-4 h-4" />
-              Day
+              <span className="hidden sm:inline">Day</span>
             </button>
             <button
               onClick={() => setCalendarView('weekly')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors",
                 calendarView === 'weekly' 
                   ? "bg-background text-foreground shadow-sm" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
               <CalendarRange className="w-4 h-4" />
-              Week
+              <span className="hidden sm:inline">Week</span>
+            </button>
+            <button
+              onClick={() => setCalendarView('monthly')}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors",
+                calendarView === 'monthly' 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Grid3X3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Month</span>
             </button>
           </div>
         </div>
@@ -162,10 +244,20 @@ export function CalendarView() {
             onDateSelect={(date) => setSelectedDate(format(date, 'yyyy-MM-dd'))}
             onNavigate={navigateDate}
           />
-        ) : (
+        ) : calendarView === 'weekly' ? (
           <WeeklyView 
             weekRange={weekRange}
             selectedDate={selectedDate}
+            getNotesForDate={getNotesForDate}
+            onDateSelect={(date) => setSelectedDate(format(date, 'yyyy-MM-dd'))}
+            onNavigate={navigateDate}
+            onGoToToday={goToToday}
+          />
+        ) : (
+          <MonthlyView
+            currentDate={currentDate}
+            selectedDate={selectedDate}
+            monthDays={monthDays}
             getNotesForDate={getNotesForDate}
             onDateSelect={(date) => setSelectedDate(format(date, 'yyyy-MM-dd'))}
             onNavigate={navigateDate}
@@ -264,7 +356,6 @@ function DailyView({ currentDate, selectedDate, weekDays, notesForSelectedDate, 
           </div>
         )}
 
-        {/* Add Note Button */}
         <button className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-muted hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-foreground transition-all">
           <Plus className="w-5 h-5" />
           <span className="font-medium">Add note</span>
@@ -286,7 +377,6 @@ interface WeeklyViewProps {
 function WeeklyView({ weekRange, selectedDate, getNotesForDate, onDateSelect, onNavigate, onGoToToday }: WeeklyViewProps) {
   return (
     <div>
-      {/* Navigation */}
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => onNavigate('prev')}
@@ -311,7 +401,6 @@ function WeeklyView({ weekRange, selectedDate, getNotesForDate, onDateSelect, on
         </Button>
       </div>
 
-      {/* Week Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {weekRange.map((day) => {
           const dateStr = format(day, 'yyyy-MM-dd');
@@ -329,7 +418,6 @@ function WeeklyView({ weekRange, selectedDate, getNotesForDate, onDateSelect, on
               )}
               onClick={() => onDateSelect(day)}
             >
-              {/* Day Header */}
               <div className="flex items-center gap-2 mb-3">
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex flex-col items-center justify-center",
@@ -347,23 +435,9 @@ function WeeklyView({ weekRange, selectedDate, getNotesForDate, onDateSelect, on
                 </span>
               </div>
 
-              {/* Notes */}
               <div className="space-y-2">
                 {notes.slice(0, 2).map((note) => (
-                  <div
-                    key={note.id}
-                    className={cn(
-                      "rounded-lg p-2 text-sm",
-                      note.color === 'white' ? 'bg-muted' : `bg-note-${note.color}`
-                    )}
-                  >
-                    <p className="font-medium truncate">{note.title || 'Untitled'}</p>
-                    {note.items.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {note.items.filter(i => i.completed).length}/{note.items.length} completed
-                      </p>
-                    )}
-                  </div>
+                  <CalendarNoteCard key={note.id} note={note} compact />
                 ))}
                 {notes.length > 2 && (
                   <p className="text-xs text-muted-foreground text-center">
@@ -374,6 +448,122 @@ function WeeklyView({ weekRange, selectedDate, getNotesForDate, onDateSelect, on
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+interface MonthlyViewProps {
+  currentDate: Date;
+  selectedDate: string;
+  monthDays: Date[];
+  getNotesForDate: (date: string) => (Note & { boardId: string; boardTitle: string })[];
+  onDateSelect: (date: Date) => void;
+  onNavigate: (direction: 'prev' | 'next') => void;
+  onGoToToday: () => void;
+}
+
+function MonthlyView({ currentDate, selectedDate, monthDays, getNotesForDate, onDateSelect, onNavigate, onGoToToday }: MonthlyViewProps) {
+  const weekDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return (
+    <div>
+      {/* Navigation */}
+      <div className="flex items-center gap-4 mb-6">
+        <button
+          onClick={() => onNavigate('prev')}
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        
+        <span className="font-display font-bold text-lg">
+          {format(currentDate, 'MMMM yyyy')}
+        </span>
+
+        <button
+          onClick={() => onNavigate('next')}
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+
+        <Button variant="outline" size="sm" onClick={onGoToToday}>
+          Today
+        </Button>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        {/* Week day headers */}
+        <div className="grid grid-cols-7 border-b border-border">
+          {weekDayNames.map((day) => (
+            <div key={day} className="py-3 text-center text-sm font-medium text-muted-foreground">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar days */}
+        <div className="grid grid-cols-7">
+          {monthDays.map((day, index) => {
+            const dateStr = format(day, 'yyyy-MM-dd');
+            const notes = getNotesForDate(dateStr);
+            const isTodayDate = isToday(day);
+            const isSelected = dateStr === selectedDate;
+            const isCurrentMonth = isSameMonth(day, currentDate);
+
+            return (
+              <div 
+                key={dateStr}
+                onClick={() => onDateSelect(day)}
+                className={cn(
+                  "min-h-[100px] sm:min-h-[120px] p-2 border-b border-r border-border cursor-pointer transition-colors hover:bg-muted/50",
+                  !isCurrentMonth && "bg-muted/30",
+                  isSelected && "bg-primary/10",
+                  index % 7 === 6 && "border-r-0"
+                )}
+              >
+                {/* Date number */}
+                <div className="flex justify-between items-start mb-1">
+                  <span className={cn(
+                    "w-7 h-7 flex items-center justify-center rounded-full text-sm font-medium",
+                    isTodayDate && "bg-foreground text-background",
+                    !isCurrentMonth && "text-muted-foreground",
+                    isSelected && !isTodayDate && "bg-primary/20 text-primary"
+                  )}>
+                    {format(day, 'd')}
+                  </span>
+                  {notes.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      {notes.length}
+                    </span>
+                  )}
+                </div>
+
+                {/* Notes preview */}
+                <div className="space-y-1">
+                  {notes.slice(0, 2).map((note) => (
+                    <div
+                      key={note.id}
+                      className={cn(
+                        "text-[10px] sm:text-xs px-1.5 py-0.5 rounded truncate",
+                        note.color === 'white' ? 'bg-muted' : `bg-note-${note.color}`
+                      )}
+                    >
+                      {note.title || 'Untitled'}
+                    </div>
+                  ))}
+                  {notes.length > 2 && (
+                    <p className="text-[10px] text-muted-foreground px-1.5">
+                      +{notes.length - 2} more
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

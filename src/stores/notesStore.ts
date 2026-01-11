@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Board, Note, Column, NoteColor, ChecklistItem, CalendarView, ItemType } from '@/types/notes';
+import { Board, Note, Column, NoteColor, ChecklistItem, CalendarView, ItemType, Tag, TagColor } from '@/types/notes';
 
 interface NotesState {
   boards: Board[];
@@ -8,7 +8,9 @@ interface NotesState {
   sidebarOpen: boolean;
   currentView: 'boards' | 'calendar';
   calendarView: CalendarView;
-  selectedDate: string; // YYYY-MM-DD format
+  selectedDate: string;
+  tags: Tag[];
+  activeTagFilter: string | null;
   
   // Actions
   setSidebarOpen: (open: boolean) => void;
@@ -16,8 +18,16 @@ interface NotesState {
   setCurrentView: (view: 'boards' | 'calendar') => void;
   setCalendarView: (view: CalendarView) => void;
   setSelectedDate: (date: string) => void;
+  setActiveTagFilter: (tagId: string | null) => void;
   createBoard: (title: string, type: 'simple' | 'kanban') => void;
   deleteBoard: (id: string) => void;
+  
+  // Tag actions
+  createTag: (name: string, color: TagColor) => void;
+  updateTag: (id: string, updates: Partial<Tag>) => void;
+  deleteTag: (id: string) => void;
+  addTagToNote: (boardId: string, noteId: string, tagId: string) => void;
+  removeTagFromNote: (boardId: string, noteId: string, tagId: string) => void;
   
   // Column actions
   addColumn: (boardId: string, title: string) => void;
@@ -39,11 +49,18 @@ interface NotesState {
   
   // Helper
   getAllNotes: () => Note[];
-  getNotesForDate: (date: string) => Note[];
+  getNotesForDate: (date: string) => (Note & { boardId: string; boardTitle: string })[];
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 const getTodayString = () => new Date().toISOString().split('T')[0];
+
+const defaultTags: Tag[] = [
+  { id: 'tag1', name: 'Work', color: 'blue' },
+  { id: 'tag2', name: 'Personal', color: 'green' },
+  { id: 'tag3', name: 'Urgent', color: 'red' },
+  { id: 'tag4', name: 'Ideas', color: 'purple' },
+];
 
 const createDefaultBoard = (): Board => ({
   id: generateId(),
@@ -62,6 +79,7 @@ const createDefaultBoard = (): Board => ({
       color: 'white',
       columnId: 'welcome',
       createdAt: new Date(),
+      tagIds: [],
     },
     note2: {
       id: 'note2',
@@ -75,6 +93,7 @@ const createDefaultBoard = (): Board => ({
       columnId: 'welcome',
       createdAt: new Date(),
       dueDate: getTodayString(),
+      tagIds: ['tag2'],
     },
     note3: {
       id: 'note3',
@@ -89,6 +108,7 @@ const createDefaultBoard = (): Board => ({
       color: 'blue',
       columnId: 'features',
       createdAt: new Date(),
+      tagIds: ['tag1'],
     },
     note4: {
       id: 'note4',
@@ -101,6 +121,7 @@ const createDefaultBoard = (): Board => ({
       color: 'pink',
       columnId: 'features',
       createdAt: new Date(),
+      tagIds: ['tag4'],
     },
     note5: {
       id: 'note5',
@@ -113,6 +134,7 @@ const createDefaultBoard = (): Board => ({
       color: 'orange',
       columnId: 'tips',
       createdAt: new Date(),
+      tagIds: ['tag3'],
     },
     note6: {
       id: 'note6',
@@ -125,6 +147,7 @@ const createDefaultBoard = (): Board => ({
       color: 'green',
       columnId: 'tips',
       createdAt: new Date(),
+      tagIds: [],
     },
   },
   createdAt: new Date(),
@@ -140,12 +163,79 @@ export const useNotesStore = create<NotesState>()(
       currentView: 'boards',
       calendarView: 'daily',
       selectedDate: getTodayString(),
+      tags: defaultTags,
+      activeTagFilter: null,
 
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       setActiveBoard: (id) => set({ activeBoardId: id, currentView: 'boards' }),
       setCurrentView: (view) => set({ currentView: view }),
       setCalendarView: (view) => set({ calendarView: view }),
       setSelectedDate: (date) => set({ selectedDate: date }),
+      setActiveTagFilter: (tagId) => set({ activeTagFilter: tagId }),
+
+      createTag: (name, color) => {
+        const newTag: Tag = { id: generateId(), name, color };
+        set((state) => ({ tags: [...state.tags, newTag] }));
+      },
+
+      updateTag: (id, updates) => {
+        set((state) => ({
+          tags: state.tags.map((tag) => (tag.id === id ? { ...tag, ...updates } : tag)),
+        }));
+      },
+
+      deleteTag: (id) => {
+        set((state) => ({
+          tags: state.tags.filter((tag) => tag.id !== id),
+          boards: state.boards.map((board) => ({
+            ...board,
+            notes: Object.fromEntries(
+              Object.entries(board.notes).map(([noteId, note]) => [
+                noteId,
+                { ...note, tagIds: note.tagIds?.filter((tagId) => tagId !== id) || [] },
+              ])
+            ),
+          })),
+        }));
+      },
+
+      addTagToNote: (boardId, noteId, tagId) => {
+        set((state) => ({
+          boards: state.boards.map((board) =>
+            board.id === boardId
+              ? {
+                  ...board,
+                  notes: {
+                    ...board.notes,
+                    [noteId]: {
+                      ...board.notes[noteId],
+                      tagIds: [...(board.notes[noteId].tagIds || []), tagId],
+                    },
+                  },
+                }
+              : board
+          ),
+        }));
+      },
+
+      removeTagFromNote: (boardId, noteId, tagId) => {
+        set((state) => ({
+          boards: state.boards.map((board) =>
+            board.id === boardId
+              ? {
+                  ...board,
+                  notes: {
+                    ...board.notes,
+                    [noteId]: {
+                      ...board.notes[noteId],
+                      tagIds: (board.notes[noteId].tagIds || []).filter((id) => id !== tagId),
+                    },
+                  },
+                }
+              : board
+          ),
+        }));
+      },
 
       createBoard: (title, type) => {
         const newBoard: Board = {
@@ -243,6 +333,7 @@ export const useNotesStore = create<NotesState>()(
               columnId,
               createdAt: new Date(),
               dueDate,
+              tagIds: [],
             };
             return {
               ...board,
@@ -422,10 +513,11 @@ export const useNotesStore = create<NotesState>()(
 
       getNotesForDate: (date: string) => {
         const { boards } = get();
-        const allNotes = boards.flatMap((board) => 
-          Object.values(board.notes).map(note => ({ ...note, boardId: board.id, boardTitle: board.title }))
+        return boards.flatMap((board) => 
+          Object.values(board.notes)
+            .filter(note => note.dueDate === date)
+            .map(note => ({ ...note, boardId: board.id, boardTitle: board.title }))
         );
-        return allNotes.filter((note) => note.dueDate === date);
       },
     }),
     {
