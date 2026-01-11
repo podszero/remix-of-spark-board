@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Nunito', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,11 +61,24 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        note: {
+          yellow: "hsl(var(--note-yellow))",
+          blue: "hsl(var(--note-blue))",
+          pink: "hsl(var(--note-pink))",
+          green: "hsl(var(--note-green))",
+          orange: "hsl(var(--note-orange))",
+          white: "hsl(var(--note-white))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        soft: "var(--shadow-soft)",
+        note: "var(--shadow-note)",
+        hover: "var(--shadow-hover)",
       },
       keyframes: {
         "accordion-down": {
