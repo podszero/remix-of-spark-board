@@ -5,18 +5,20 @@ import {
   closestCorners,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragStartEvent,
 } from '@dnd-kit/core';
-import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import { Board as BoardType } from '@/types/notes';
 import { Column } from './Column';
 import { StickyNote } from './StickyNote';
 import { useNotesStore } from '@/stores/notesStore';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface BoardProps {
   board: BoardType;
@@ -32,6 +34,12 @@ export function Board({ board }: BoardProps) {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -55,17 +63,14 @@ export function Board({ board }: BoardProps) {
     const overId = over.id as string;
     const overNote = board.notes[overId];
     
-    // Determine target column
     let targetColumnId: string;
     let targetIndex: number;
 
     if (overNote) {
-      // Dropped on another note
       targetColumnId = overNote.columnId;
       const targetColumn = board.columns.find(c => c.id === targetColumnId);
       targetIndex = targetColumn?.noteIds.indexOf(overId) || 0;
     } else {
-      // Dropped on a column
       targetColumnId = overId;
       const targetColumn = board.columns.find(c => c.id === targetColumnId);
       targetIndex = targetColumn?.noteIds.length || 0;
@@ -88,14 +93,14 @@ export function Board({ board }: BoardProps) {
   const activeNote = activeNoteId ? board.notes[activeNoteId] : null;
 
   return (
-    <div className="flex-1 overflow-x-auto p-6">
+    <div className="flex-1 overflow-x-auto overflow-y-auto">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-6 min-h-full">
+        <div className="flex gap-4 sm:gap-6 min-h-full p-4 sm:p-6 pb-24">
           {board.columns.map((column) => (
             <Column
               key={column.id}
@@ -106,9 +111,9 @@ export function Board({ board }: BoardProps) {
           ))}
 
           {/* Add Column */}
-          <div className="flex-shrink-0 w-72">
+          <div className="flex-shrink-0 w-[85vw] sm:w-72 max-w-[300px]">
             {isAddingColumn ? (
-              <div className="space-y-2">
+              <div className="space-y-3 p-4 bg-card rounded-xl border border-border shadow-soft">
                 <Input
                   placeholder="Column title..."
                   value={newColumnTitle}
@@ -117,17 +122,26 @@ export function Board({ board }: BoardProps) {
                     if (e.key === 'Enter') handleAddColumn();
                     if (e.key === 'Escape') setIsAddingColumn(false);
                   }}
-                  onBlur={() => {
-                    if (!newColumnTitle.trim()) setIsAddingColumn(false);
-                  }}
                   autoFocus
-                  className="bg-card"
+                  className="bg-background"
                 />
+                <div className="flex gap-2">
+                  <Button onClick={handleAddColumn} size="sm" className="flex-1">
+                    Add
+                  </Button>
+                  <Button 
+                    onClick={() => setIsAddingColumn(false)} 
+                    size="sm" 
+                    variant="ghost"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             ) : (
               <button
                 onClick={() => setIsAddingColumn(true)}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl transition-colors w-full touch-manipulation"
               >
                 <Plus className="w-4 h-4" />
                 Add Column
@@ -138,7 +152,7 @@ export function Board({ board }: BoardProps) {
 
         <DragOverlay>
           {activeNote && (
-            <div className="opacity-80 rotate-3">
+            <div className="opacity-90 rotate-2 scale-105">
               <StickyNote note={activeNote} boardId={board.id} />
             </div>
           )}
