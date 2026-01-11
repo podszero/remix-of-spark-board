@@ -11,17 +11,30 @@ import {
   Search,
   CalendarDays,
   CalendarRange,
+  Grid3X3,
+  Tag,
   StickyNote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notesStore';
 import { CreateBoardDialog } from './CreateBoardDialog';
-import { format } from 'date-fns';
+import { TagColor } from '@/types/notes';
 
 interface SidebarProps {
   isMobile?: boolean;
   onClose?: () => void;
 }
+
+const tagDotClasses: Record<TagColor, string> = {
+  red: 'bg-red-500',
+  orange: 'bg-orange-500',
+  yellow: 'bg-yellow-500',
+  green: 'bg-emerald-500',
+  blue: 'bg-blue-500',
+  purple: 'bg-purple-500',
+  pink: 'bg-pink-500',
+  gray: 'bg-gray-500',
+};
 
 export function Sidebar({ isMobile, onClose }: SidebarProps) {
   const { 
@@ -33,10 +46,14 @@ export function Sidebar({ isMobile, onClose }: SidebarProps) {
     currentView,
     setCurrentView,
     calendarView,
-    setCalendarView
+    setCalendarView,
+    tags,
+    activeTagFilter,
+    setActiveTagFilter
   } = useNotesStore();
   const [calendarOpen, setCalendarOpen] = useState(true);
   const [boardsOpen, setBoardsOpen] = useState(true);
+  const [tagsOpen, setTagsOpen] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,6 +63,7 @@ export function Sidebar({ isMobile, onClose }: SidebarProps) {
 
   const handleBoardSelect = (id: string) => {
     setActiveBoard(id);
+    setActiveTagFilter(null);
     if (isMobile && onClose) {
       onClose();
     }
@@ -54,9 +72,14 @@ export function Sidebar({ isMobile, onClose }: SidebarProps) {
   const handleCalendarSelect = (view: 'daily' | 'weekly' | 'monthly') => {
     setCalendarView(view);
     setCurrentView('calendar');
+    setActiveTagFilter(null);
     if (isMobile && onClose) {
       onClose();
     }
+  };
+
+  const handleTagFilter = (tagId: string | null) => {
+    setActiveTagFilter(tagId === activeTagFilter ? null : tagId);
   };
 
   const handleClose = () => {
@@ -134,6 +157,7 @@ export function Sidebar({ isMobile, onClose }: SidebarProps) {
                 {[
                   { name: 'Daily', icon: CalendarDays, view: 'daily' as const },
                   { name: 'Weekly', icon: CalendarRange, view: 'weekly' as const },
+                  { name: 'Monthly', icon: Grid3X3, view: 'monthly' as const },
                 ].map((item) => {
                   const isActive = currentView === 'calendar' && calendarView === item.view;
                   return (
@@ -152,6 +176,56 @@ export function Sidebar({ isMobile, onClose }: SidebarProps) {
                     </button>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* Tags Section */}
+          <div className="mb-1">
+            <button
+              onClick={() => setTagsOpen(!tagsOpen)}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              <div className="w-6 h-6 rounded-md bg-purple-500/10 flex items-center justify-center">
+                <Tag className="w-3.5 h-3.5 text-purple-500" />
+              </div>
+              <span className="flex-1 text-left text-sm">Tags</span>
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                {tags.length}
+              </span>
+              {tagsOpen ? (
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+              )}
+            </button>
+
+            {tagsOpen && (
+              <div className="ml-2 mt-0.5 space-y-0.5 border-l-2 border-border pl-2">
+                {tags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => handleTagFilter(tag.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-all",
+                      activeTagFilter === tag.id
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                    )}
+                  >
+                    <div className={cn("w-2.5 h-2.5 rounded-full", tagDotClasses[tag.color])} />
+                    <span>{tag.name}</span>
+                  </button>
+                ))}
+                {activeTagFilter && (
+                  <button
+                    onClick={() => setActiveTagFilter(null)}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Clear filter</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -207,7 +281,6 @@ export function Sidebar({ isMobile, onClose }: SidebarProps) {
               </div>
             )}
 
-            {/* New Board Button */}
             <button
               onClick={() => setCreateDialogOpen(true)}
               className="w-full flex items-center gap-2 px-2.5 py-2 mt-1 rounded-lg text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
